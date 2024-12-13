@@ -1,56 +1,30 @@
 import { model, Schema } from 'mongoose';
-import { ISubscribtion } from './subscribtion.interface';
+import { SubscriptionSchema } from './subscribtion.interface';
 
-const subscribationSchema = new Schema<ISubscribtion>(
-  {
-    status: {
-      type: String,
-      // enum: ['expired', 'active', 'incomplete', 'cancellation_requested'],
-    },
-    customerId: {
-      type: String,
-    },
-    plan: {
-      type: String,
-    },
-    subscriptionId: {
-      type: String,
-    },
-    priceId: {
-      type: String,
-    },
-    priceAmount: {
-      type: Number,
-    },
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-    },
-
-    packages: {
-      type: Schema.Types.ObjectId,
-      ref: 'Package',
-    },
-
-    clientSecret: {
-      type: String,
-    },
-    transactionId: {
-      type: String,
-    },
-    currentPeriodEnd: {
-      type: String,
-    },
-    currentPeriodStart: {
-      type: String,
-    },
+const subscribtionSchema = new Schema<SubscriptionSchema>({
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
   },
-  {
-    timestamps: true,
-  }
-);
+  plan: {
+    type: Schema.Types.ObjectId,
+    ref: 'Plan',
+  },
+  stripeSubscriptionId: {
+    type: String,
+  },
+  stripeCustomerId: {
+    type: String,
+  },
+  status: {
+    type: String,
+  },
+  startDate: {
+    type: Date,
+  },
+  endDate: {
+    type: Date,
+  },
+});
 
-export const Subscribation = model<ISubscribtion>(
-  'subscribation',
-  subscribationSchema
-);
+export const Subscribtion = model('Subscribtion', subscribtionSchema);
