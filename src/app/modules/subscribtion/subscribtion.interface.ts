@@ -1,11 +1,24 @@
 import { Types } from 'mongoose';
-
-export type SubscriptionSchema = {
-  plan: Types.ObjectId;
-  user: Types.ObjectId;
-  stripeSubscriptionId: string;
-  stripeCustomerId: string;
+export type ISubscribtion = {
+  customerId: string;
+  plan: string;
   status: string;
-  startDate: Date;
-  endDate: Date;
+  priceAmount: number;
+  user: Types.ObjectId;
+  packages: Types.ObjectId;
+  priceId: string | null;
+  transactionId: string | null;
+  subscriptionId: string | null;
+  clientSecret: string | null;
+  currentPeriodEnd: Date | null;
+  currentPeriodStart: Date | null;
 };
+
+// status:
+// | 'expired'
+// | 'active'
+// | 'incomplete'
+// | 'cancellation_requested'
+// | 'canceled'
+// | 'unpaid'
+// | 'successful';
