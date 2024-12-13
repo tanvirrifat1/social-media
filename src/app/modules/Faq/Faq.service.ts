@@ -11,7 +11,6 @@ const createFaqToDB = async (payload: Partial<IFaq>) => {
   if (!result) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create faq');
   }
-
   return result;
 };
 

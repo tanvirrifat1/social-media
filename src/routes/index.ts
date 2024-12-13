@@ -24,6 +24,7 @@ import { TrackRoutes } from '../app/modules/track/track.route';
 import { ShowInterestRoutes } from '../app/modules/showInterest/showInterest.route';
 import { SubmitProveRoutes } from '../app/modules/submitProve/submitProve.route';
 import { InterestInFluencerRoutes } from '../app/modules/interest/interest.route';
+import { PlanRoutes } from '../app/modules/plan/plan.route';
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ const apiRoutes = [
   { path: '/show-interest', route: ShowInterestRoutes },
   { path: '/submit-prove', route: SubmitProveRoutes },
   { path: '/interest', route: InterestInFluencerRoutes },
+  { path: '/plan', route: PlanRoutes },
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));
