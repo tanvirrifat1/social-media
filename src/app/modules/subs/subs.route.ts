@@ -17,4 +17,4 @@ router.get(
   SubscriptationController.getAllSubscriptation
 );
 
-export const SubscriptionRoute = router;
+export const SubscriptionRoutessss = router;
