@@ -197,35 +197,29 @@ const updateSubscriptionPlanService = async (
     );
   }
 
-  // Step 6: Retrieve the upcoming invoice to calculate proration
+  // // Step 6: Retrieve the upcoming invoice to calculate proration
   const invoicePreview = await stripe.invoices.retrieveUpcoming({
     customer: updatedStripeSubscription.customer as string,
     subscription: updatedStripeSubscription.id,
   });
 
-  // Extract the actual amount Stripe will charge for this update
-  const prorationAmount = (invoicePreview.total || 0) / 100; // Convert from cents to dollars
-
-  console.log('Proration Amount:', prorationAmount);
-  console.log('updatedStripeSubscription:', updatedStripeSubscription);
-  console.log('invoicePreview:', invoicePreview);
+  const prorationAmount = (invoicePreview.total || 0) / 100;
 
   // Step 7: Update the local database with the actual charged amount (proration)
   const updatedSub = await Subscribtion.findByIdAndUpdate(
     subscription._id,
     {
-      plan: newPlanId, // Save the new plan ID
-      amount: prorationAmount, // Save the actual prorated amount charged by Stripe
-      // Update additional fields if needed
+      plan: newPlanId,
+      amount: prorationAmount,
+
       startDate: new Date(invoicePreview.period_start * 1000),
       endDate: new Date(invoicePreview.period_end * 1000),
     },
     { new: true }
   );
 
-  // Ensure the subscription status is updated
   if (updatedSub) {
-    updatedSub.status = 'active'; // Set status to active if applicable
+    updatedSub.status = 'active';
     await updatedSub.save();
   }
 
