@@ -2,11 +2,11 @@ import Stripe from 'stripe';
 import { stripe } from '../../../shared/stripe';
 import { Plan } from '../plan/plan.model';
 import { User } from '../user/user.model';
-
 import { Types } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { Subscribtion } from './subs.model';
+import { WebhookService } from '../../../shared/webhook';
 
 const createCheckoutSessionService = async (userId: string, planId: string) => {
   const isUser = await User.findById(userId);
@@ -46,69 +46,25 @@ const createCheckoutSessionService = async (userId: string, planId: string) => {
 
 const handleStripeWebhookService = async (event: Stripe.Event) => {
   switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-
-      const { amount_total, metadata, payment_intent, status } = session;
-      const userId = metadata?.userId as string;
-      const planId = metadata?.planId as string;
-      const products = JSON.parse(metadata?.products || '[]');
-      const email = session.customer_email || '';
-
-      const amountTotal = (amount_total ?? 0) / 100;
-
-      console.log(amountTotal, 'amountTotal');
-      console.log(session, 'session');
-
-      const subscription = await stripe.subscriptions.retrieve(
-        session.subscription as string
-      );
-
-      const startDate = new Date(subscription.start_date * 1000);
-      const endDate = new Date(subscription.current_period_end * 1000);
-
-      const paymentRecord = new Subscribtion({
-        amount: amountTotal,
-        user: new Types.ObjectId(userId),
-        plan: new Types.ObjectId(planId),
-        products,
-        email,
-        transactionId: payment_intent,
-        startDate,
-        endDate,
-        status: 'Pending',
-        subscriptionId: session.subscription,
-        stripeCustomerId: session.customer as string,
-      });
-
-      await paymentRecord.save();
+    case 'checkout.session.completed':
+      WebhookService.handleCheckoutSessionCompleted(event.data.object);
       break;
-    }
 
-    case 'invoice.payment_succeeded': {
-      const invoice = event.data.object as Stripe.Invoice;
-      const subscription = await Subscribtion.findOne({
-        subscriptionId: invoice.subscription,
-      });
-
-      if (subscription) {
-        subscription.status = 'active';
-        await subscription.save();
-      }
+    case 'invoice.payment_succeeded':
+      WebhookService.handleInvoicePaymentSucceeded(event.data.object);
       break;
-    }
 
-    case 'checkout.session.async_payment_failed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const payment = await Subscribtion.findOne({
-        stripeCustomerId: session.customer as string,
-      });
-      if (payment) {
-        payment.status = 'Failed';
-        await payment.save();
-      }
+    case 'invoice.payment_failed':
+      WebhookService.handleInvoicePaymentFailed(event.data.object);
       break;
-    }
+
+    case 'checkout.session.async_payment_failed':
+      WebhookService.handleAsyncPaymentFailed(event.data.object);
+      break;
+
+    case 'customer.subscription.deleted':
+      WebhookService.handleSubscriptionDeleted(event.data.object);
+      break;
 
     default:
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid event type');
@@ -162,6 +118,7 @@ const getAllSubs = async (query: Record<string, unknown>) => {
   // Fetch campaigns
   const result = await Subscribtion.find(whereConditions)
     .populate('user', 'fullName')
+    .populate('plan', 'name unitAmount interval')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(size)
@@ -243,8 +200,6 @@ const updateSubscriptionPlanService = async (
     },
     { new: true }
   );
-
-  // Return updated subscription and proration amount
 
   return updatedSub;
 };
