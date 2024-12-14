@@ -91,9 +91,16 @@ const cancelSubscriptation = async (userId: string) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscribtion not found');
   }
 
-  await stripe.subscriptions.update(subscription.subscriptionId, {
-    cancel_at_period_end: true,
-  });
+  const updatedSubscription = await stripe.subscriptions.update(
+    subscription.subscriptionId,
+    {
+      cancel_at_period_end: true,
+    }
+  );
+
+  if (!updatedSubscription) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscribtion not cancel');
+  }
 
   const updatedSub = await Subscribtion.findOneAndUpdate(
     { user: userId },
@@ -151,13 +158,13 @@ const updateSubscriptionPlanService = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription not found');
   }
 
-  // Fetch the new plan details
+  // Step 3: Fetch the new plan details
   const newPlan = await Plan.findById(newPlanId);
   if (!newPlan) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'New plan not found');
   }
 
-  // Fetch the current subscription from Stripe
+  // Step 4: Fetch the current subscription from Stripe
   const stripeSubscription = await stripe.subscriptions.retrieve(
     subscription.subscriptionId
   );
@@ -169,37 +176,58 @@ const updateSubscriptionPlanService = async (
     );
   }
 
-  // Step 3: Update the subscription in Stripe
-  const updatedSubscription = await stripe.subscriptions.update(
+  // Step 5: Update the subscription in Stripe
+  const updatedStripeSubscription = await stripe.subscriptions.update(
     subscription.subscriptionId,
     {
       items: [
         {
           id: stripeSubscription.items.data[0].id,
-          price: newPlan.priceId,
+          price: newPlan.priceId, // The new plan's price ID
         },
       ],
-      proration_behavior: 'create_prorations',
+      proration_behavior: 'create_prorations', // Optional: set based on your requirements
     }
   );
 
-  // After the update, retrieve the upcoming invoice
+  if (!updatedStripeSubscription) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Stripe subscription update failed'
+    );
+  }
+
+  // Step 6: Retrieve the upcoming invoice to calculate proration
   const invoicePreview = await stripe.invoices.retrieveUpcoming({
-    customer: stripeSubscription.customer as string,
-    subscription: subscription.subscriptionId,
+    customer: updatedStripeSubscription.customer as string,
+    subscription: updatedStripeSubscription.id,
   });
 
-  const prorationAmount = (invoicePreview.total || 0) / 100;
+  // Extract the actual amount Stripe will charge for this update
+  const prorationAmount = (invoicePreview.total || 0) / 100; // Convert from cents to dollars
 
-  // Step 4: Update the subscription in the database
-  const updatedSub = await Subscribtion.findOneAndUpdate(
-    { user: userId },
+  console.log('Proration Amount:', prorationAmount);
+  console.log('updatedStripeSubscription:', updatedStripeSubscription);
+  console.log('invoicePreview:', invoicePreview);
+
+  // Step 7: Update the local database with the actual charged amount (proration)
+  const updatedSub = await Subscribtion.findByIdAndUpdate(
+    subscription._id,
     {
-      plan: newPlanId,
-      amount: prorationAmount,
+      plan: newPlanId, // Save the new plan ID
+      amount: prorationAmount, // Save the actual prorated amount charged by Stripe
+      // Update additional fields if needed
+      startDate: new Date(invoicePreview.period_start * 1000),
+      endDate: new Date(invoicePreview.period_end * 1000),
     },
     { new: true }
   );
+
+  // Ensure the subscription status is updated
+  if (updatedSub) {
+    updatedSub.status = 'active'; // Set status to active if applicable
+    await updatedSub.save();
+  }
 
   return updatedSub;
 };
