@@ -57,6 +57,9 @@ const handleStripeWebhookService = async (event: Stripe.Event) => {
 
       const amountTotal = (amount_total ?? 0) / 100;
 
+      console.log(amountTotal, 'amountTotal');
+      console.log(session, 'session');
+
       const subscription = await stripe.subscriptions.retrieve(
         session.subscription as string
       );
@@ -67,7 +70,7 @@ const handleStripeWebhookService = async (event: Stripe.Event) => {
       const paymentRecord = new Subscribtion({
         amount: amountTotal,
         user: new Types.ObjectId(userId),
-        planId: new Types.ObjectId(planId),
+        plan: new Types.ObjectId(planId),
         products,
         email,
         transactionId: payment_intent,
@@ -120,8 +123,137 @@ const getSubscribtionService = async (userId: string) => {
   return subscription;
 };
 
+const cancelSubscriptation = async (userId: string) => {
+  const isUser = await User.findById(userId);
+
+  if (!isUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User not found');
+  }
+
+  const subscription = await Subscribtion.findOne({ user: userId });
+  if (!subscription) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscribtion not found');
+  }
+
+  await stripe.subscriptions.update(subscription.subscriptionId, {
+    cancel_at_period_end: true,
+  });
+
+  const updatedSub = await Subscribtion.findOneAndUpdate(
+    { user: userId },
+    { status: 'cancel' },
+    { new: true }
+  );
+  return updatedSub;
+};
+
+const getAllSubs = async (query: Record<string, unknown>) => {
+  const { page, limit } = query;
+  const anyConditions: any[] = [{ status: 'active' }];
+
+  const whereConditions =
+    anyConditions.length > 0 ? { $and: anyConditions } : {};
+
+  // Pagination setup
+  const pages = parseInt(page as string) || 1;
+  const size = parseInt(limit as string) || 10;
+  const skip = (pages - 1) * size;
+
+  // Fetch campaigns
+  const result = await Subscribtion.find(whereConditions)
+    .populate('user', 'fullName')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(size)
+    .lean();
+
+  const count = await Subscribtion.countDocuments(whereConditions);
+
+  return {
+    result,
+    meta: {
+      page: pages,
+      total: count,
+    },
+  };
+};
+
+const updateSubscriptionPlanService = async (
+  userId: string,
+  newPlanId: string
+) => {
+  // Step 1: Fetch the user
+  const isUser = await User.findById(userId);
+  if (!isUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User not found');
+  }
+
+  // Step 2: Fetch the user's subscription
+  const subscription = await Subscribtion.findOne({ user: userId });
+  if (!subscription) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription not found');
+  }
+
+  // Fetch the new plan details
+  const newPlan = await Plan.findById(newPlanId);
+  if (!newPlan) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'New plan not found');
+  }
+
+  // Fetch the current subscription from Stripe
+  const stripeSubscription = await stripe.subscriptions.retrieve(
+    subscription.subscriptionId
+  );
+
+  if (!stripeSubscription) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Stripe subscription not found'
+    );
+  }
+
+  // Step 3: Update the subscription in Stripe
+  const updatedSubscription = await stripe.subscriptions.update(
+    subscription.subscriptionId,
+    {
+      items: [
+        {
+          id: stripeSubscription.items.data[0].id,
+          price: newPlan.priceId,
+        },
+      ],
+      proration_behavior: 'create_prorations',
+    }
+  );
+
+  // After the update, retrieve the upcoming invoice
+  const invoicePreview = await stripe.invoices.retrieveUpcoming({
+    customer: stripeSubscription.customer as string,
+    subscription: subscription.subscriptionId,
+  });
+
+  const prorationAmount = (invoicePreview.total || 0) / 100;
+
+  // Step 4: Update the subscription in the database
+  const updatedSub = await Subscribtion.findOneAndUpdate(
+    { user: userId },
+    {
+      plan: newPlanId,
+      amount: prorationAmount,
+    },
+    { new: true }
+  );
+
+  // Return updated subscription and proration amount
+
+  return updatedSub;
+};
+
 export const SubscriptationService = {
   createCheckoutSessionService,
   handleStripeWebhookService,
   getSubscribtionService,
+  cancelSubscriptation,
+  getAllSubs,
+  updateSubscriptionPlanService,
 };

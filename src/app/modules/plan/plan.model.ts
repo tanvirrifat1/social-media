@@ -25,6 +25,9 @@ const planSchema = new mongoose.Schema<IPlan>({
   priceId: {
     type: String,
   },
+  price: {
+    type: Number,
+  },
 });
 
 export const Plan = mongoose.model<IPlan>('Plan', planSchema);

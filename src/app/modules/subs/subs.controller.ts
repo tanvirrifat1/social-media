@@ -52,8 +52,49 @@ const getAllSubscriptation = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const cancelSubscriptation = catchAsync(async (req: Request, res: Response) => {
+  const result = await SubscriptationService.cancelSubscriptation(
+    req.params.userId
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Subscriptation canceled successfully',
+    data: result,
+  });
+});
+
+const getAllSubs = catchAsync(async (req: Request, res: Response) => {
+  const result = await SubscriptationService.getAllSubs(req.query);
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Subscriptation retrived successfully',
+    data: result,
+  });
+});
+
+const updateSubs = catchAsync(async (req: Request, res: Response) => {
+  const { userId, newPlanId } = req.body;
+
+  const result = await SubscriptationService.updateSubscriptionPlanService(
+    userId,
+    newPlanId
+  );
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Subscriptation updated successfully',
+    data: result,
+  });
+});
+
 export const SubscriptationController = {
   createCheckoutSessionController,
   stripeWebhookController,
   getAllSubscriptation,
+  cancelSubscriptation,
+  getAllSubs,
+  updateSubs,
 };

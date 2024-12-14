@@ -5,4 +5,5 @@ export type IPlan = {
   interval: 'day' | 'week' | 'month' | 'year' | 'half-year';
   productId: string;
   priceId: string;
+  price: number;
 };

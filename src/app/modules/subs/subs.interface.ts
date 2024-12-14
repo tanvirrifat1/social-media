@@ -9,4 +9,5 @@ export type SubscriptionSchema = {
   startDate: Date;
   endDate: Date;
   email: string;
+  amount: number;
 };

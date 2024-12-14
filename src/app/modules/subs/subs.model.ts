@@ -28,6 +28,9 @@ const subscribtionSchema = new Schema<SubscriptionSchema>({
   email: {
     type: String,
   },
+  amount: {
+    type: Number,
+  },
 });
 
 export const Subscribtion = model('Subscribtion', subscribtionSchema);
