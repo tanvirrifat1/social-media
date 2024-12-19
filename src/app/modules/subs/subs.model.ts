@@ -33,4 +33,4 @@ const subscribtionSchema = new Schema<SubscriptionSchema>({
   },
 });
 
-export const Subscribtion = model('Subscribtion', subscribtionSchema);
+export const Subs = model('Subscribtion', subscribtionSchema);

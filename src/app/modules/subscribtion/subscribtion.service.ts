@@ -86,8 +86,6 @@ const handleWebhook = async (event: any) => {
 };
 
 const createCustomerAndSubscription = async (
-  // email: string,
-  // priceId: string,
   user: string,
   packages: string
 ) => {
@@ -139,6 +137,8 @@ const createCustomerAndSubscription = async (
     clientSecret: paymentIntent.client_secret,
   };
 
+  console.log(allSubscriptationValue);
+
   const createSub = await Subscribation.create({
     // transactionId: paymentIntent.id,
     subscriptionId: subscription.id,
@@ -179,8 +179,6 @@ const handlePaymentSuccess = async (userId: string, subscriptionId: string) => {
   const isPackageExist = await Package.findOne({ _id: packages });
 
   const isPackage = isPackageExist?.title;
-
-  console.log(isPackage);
 
   if (updatedSub) {
     // Find and update the user based on the id

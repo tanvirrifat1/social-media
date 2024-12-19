@@ -4,7 +4,10 @@ import { Server } from 'socket.io';
 import app from './app';
 import config from './config';
 import seedSuperAdmin from './DB';
-import { socketHelper } from './helpers/socketHelper';
+import {
+  initializeSocketConnection,
+  socketHelper,
+} from './helpers/socketHelper';
 import { errorLogger, logger } from './shared/logger';
 
 //uncaught exception
@@ -37,6 +40,8 @@ async function main() {
       },
     });
     socketHelper.socket(io);
+
+    initializeSocketConnection(io);
     //@ts-ignore
     global.io = io;
   } catch (error) {

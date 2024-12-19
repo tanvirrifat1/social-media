@@ -1,4 +1,3 @@
-import { populate } from 'dotenv';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { Track } from './track.model';

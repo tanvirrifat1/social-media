@@ -5,8 +5,9 @@ import { User } from '../user/user.model';
 import { Types } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
-import { Subscribtion } from './subs.model';
+
 import { WebhookService } from '../../../shared/webhook';
+import { Subs } from './subs.model';
 
 const createCheckoutSessionService = async (userId: string, planId: string) => {
   const isUser = await User.findById(userId);
@@ -72,7 +73,7 @@ const handleStripeWebhookService = async (event: Stripe.Event) => {
 };
 
 const getSubscribtionService = async (userId: string) => {
-  const subscription = await Subscribtion.findOne({ user: userId });
+  const subscription = await Subs.findOne({ user: userId });
   if (!subscription) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscribtion not found');
   }
@@ -86,7 +87,7 @@ const cancelSubscriptation = async (userId: string) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'User not found');
   }
 
-  const subscription = await Subscribtion.findOne({ user: userId });
+  const subscription = await Subs.findOne({ user: userId });
   if (!subscription) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscribtion not found');
   }
@@ -102,7 +103,7 @@ const cancelSubscriptation = async (userId: string) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscribtion not cancel');
   }
 
-  const updatedSub = await Subscribtion.findOneAndUpdate(
+  const updatedSub = await Subs.findOneAndUpdate(
     { user: userId },
     { status: 'cancel' },
     { new: true }
@@ -123,7 +124,7 @@ const getAllSubs = async (query: Record<string, unknown>) => {
   const skip = (pages - 1) * size;
 
   // Fetch campaigns
-  const result = await Subscribtion.find(whereConditions)
+  const result = await Subs.find(whereConditions)
     .populate('user', 'fullName')
     .populate('plan', 'name unitAmount interval')
     .sort({ createdAt: -1 })
@@ -131,7 +132,7 @@ const getAllSubs = async (query: Record<string, unknown>) => {
     .limit(size)
     .lean();
 
-  const count = await Subscribtion.countDocuments(whereConditions);
+  const count = await Subs.countDocuments(whereConditions);
 
   return {
     result,
@@ -153,7 +154,7 @@ const updateSubscriptionPlanService = async (
   }
 
   // Step 2: Fetch the user's subscription
-  const subscription = await Subscribtion.findOne({ user: userId });
+  const subscription = await Subs.findOne({ user: userId });
   if (!subscription) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription not found');
   }
@@ -206,7 +207,7 @@ const updateSubscriptionPlanService = async (
   const prorationAmount = (invoicePreview.total || 0) / 100;
 
   // Step 7: Update the local database with the actual charged amount (proration)
-  const updatedSub = await Subscribtion.findByIdAndUpdate(
+  const updatedSub = await Subs.findByIdAndUpdate(
     subscription._id,
     {
       plan: newPlanId,
